@@ -125,19 +125,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 </head>
 <body>
-    <!-- <main class="main">
-        <div class="container">
-            <div id="chat-container" class="chatContainer">
-                <div id="messages" class="messages"></div>
-                <form id="chat-form" class="inputForm clearfix">
-                    <input type="text" id="user-input" class="input" placeholder="Enter your question">
-                    <button type="submit" id="send-button" class="button">Send</button>
-                </form>
-            </div>
-        </div>
-    </main> -->
-
-
 
     <main class="main">
         <div class="container">
@@ -151,6 +138,27 @@
         </div>
     </main>
     
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+</head>
+<body>
+    <div class="chatContainer">
+        <div id="messages" class="messages"></div>
+        <form id="chatForm" class="inputForm clearfix">
+            <input type="text" id="userInput" class="input" placeholder="Enter your question">
+            <button type="submit" class="button">Send</button>
+        </form>
+    </div>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </body>
 </html>

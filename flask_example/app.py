@@ -60,9 +60,18 @@
 # if __name__ == '__main__':
 #     app.run(debug=True)
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context
+from openai import OpenAI
+import os
+from dotenv import load_dotenv
 
 app = Flask(__name__)
+
+# Initialize OpenAI client
+load_dotenv()   # Load environment variables from .env file
+
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+ASSISTANT_ID = os.environ.get("OPENAI_ASSISTANT_ID")
 
 @app.route('/')
 def index():
@@ -70,13 +79,52 @@ def index():
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
-    user_message = request.json['message']
-    # For now, we'll just echo the user's message back
-    response = f"Echo: {user_message}"
-    return jsonify({'message': response})
+    data = request.json
+    user_message = data['message']
+    thread_id = data.get('threadId')
+
+    if not thread_id:
+        thread = client.beta.threads.create()
+        thread_id = thread.id
+    else:
+        thread = client.beta.threads.retrieve(thread_id)
+
+    # Add message to thread
+    client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=user_message,
+    )
+
+    def generate():
+        try:
+            run = client.beta.threads.runs.create(
+                thread_id=thread_id,
+                assistant_id=ASSISTANT_ID,
+            )
+
+            while run.status != "completed":
+                run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+                
+                if run.status == "failed":
+                    yield f"data: {{\"event\": \"error\", \"content\": \"{run.last_error.message}\"}}\n\n"
+                    break
+                
+                if run.status == "completed":
+                    messages = client.beta.threads.messages.list(thread_id=thread_id)
+                    assistant_message = next((msg for msg in messages if msg.role == "assistant"), None)
+                    if assistant_message:
+                        content = assistant_message.content[0].text.value
+                        yield f"data: {{\"event\": \"message\", \"content\": \"{content}\", \"threadId\": \"{thread_id}\"}}\n\n"
+                    break
+
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            yield f"data: {{\"event\": \"error\", \"content\": \"{str(e)}\"}}\n\n"
+
+    return Response(stream_with_context(generate()), content_type='text/event-stream')
 
 if __name__ == '__main__':
     app.run(debug=True)
-
 
 
