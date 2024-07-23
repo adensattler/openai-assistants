@@ -1,0 +1,156 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <main class="main">
+        <div class="container">
+            <div id="chat-container" class="chatContainer">
+                <div id="messages" class="messages"></div>
+                <form id="chat-form" class="inputForm clearfix">
+                    <input type="text" id="user-input" class="input" placeholder="Enter your question">
+                    <button type="submit" id="send-button" class="button">Send</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let threadId = null;
+        let eventSource = null;
+
+        function addMessage(role, text) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = role === 'user' ? 'userMessage' : 'assistantMessage';
+            messageDiv.textContent = text;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function createThread() {
+            const response = await fetch('/api/assistants/threads', { method: 'POST' });
+            const data = await response.json();
+            threadId = data.threadId;
+        }
+
+        async function sendMessage(message) {
+            if (!threadId) {
+                await createThread();
+            }
+
+            addMessage('user', message);
+
+            // First, send the message
+            await fetch(`/api/assistants/threads/${threadId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: message }),
+            });
+
+            // Then, create the EventSource to receive the response
+            eventSource = new EventSource(`/api/assistants/threads/${threadId}/messages`);
+            let currentAssistantMessage = '';
+
+            eventSource.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+                if (data.event === 'message') {
+                    currentAssistantMessage += data.content;
+                    updateLastAssistantMessage(currentAssistantMessage);
+                } else if (data.event === 'done') {
+                    eventSource.close();
+                    document.getElementById('send-button').disabled = false;
+                } else if (data.event === 'error') {
+                    console.error('Error:', data.content);
+                    eventSource.close();
+                    document.getElementById('send-button').disabled = false;
+                }
+            };
+
+
+            const response = await fetch(`/api/assistants/threads/${threadId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: message }),
+            });
+        }
+
+        function updateLastAssistantMessage(text) {
+            const messagesDiv = document.getElementById('messages');
+            let lastAssistantMessage = messagesDiv.querySelector('.assistantMessage:last-child');
+            if (!lastAssistantMessage) {
+                lastAssistantMessage = document.createElement('div');
+                lastAssistantMessage.className = 'assistantMessage';
+                messagesDiv.appendChild(lastAssistantMessage);
+            }
+            lastAssistantMessage.textContent = text;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        document.getElementById('chat-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            if (message) {
+                document.getElementById('send-button').disabled = true;
+                input.value = '';
+                await sendMessage(message);
+            }
+        });
+
+        createThread();
+    </script>
+</body>
+
+</html> -->
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+</head>
+<body>
+    <!-- <main class="main">
+        <div class="container">
+            <div id="chat-container" class="chatContainer">
+                <div id="messages" class="messages"></div>
+                <form id="chat-form" class="inputForm clearfix">
+                    <input type="text" id="user-input" class="input" placeholder="Enter your question">
+                    <button type="submit" id="send-button" class="button">Send</button>
+                </form>
+            </div>
+        </div>
+    </main> -->
+
+
+
+    <main class="main">
+        <div class="container">
+            <div class="chatContainer">
+                <div id="messages" class="messages"></div>
+                <form id="chatForm" class="inputForm clearfix">
+                    <input type="text" id="userInput" class="input" placeholder="Enter your question">
+                    <button type="submit" class="button">Send</button>
+                </form>
+            </div>
+        </div>
+    </main>
+    
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
