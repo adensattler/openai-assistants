@@ -63,6 +63,7 @@
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 from openai import OpenAI
 import os
+import re
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -76,7 +77,6 @@ ASSISTANT_ID = os.environ.get("OPENAI_ASSISTANT_ID")
 @app.route('/')
 def index():
     return render_template('index.html')
-
 @app.route('/send_message', methods=['POST'])
 def send_message():
     data = request.json
@@ -89,42 +89,33 @@ def send_message():
     else:
         thread = client.beta.threads.retrieve(thread_id)
 
-    # Add message to thread
+    # Add user message to thread
     client.beta.threads.messages.create(
         thread_id=thread_id,
         role="user",
         content=user_message,
     )
 
-    def generate():
-        try:
-            run = client.beta.threads.runs.create(
-                thread_id=thread_id,
-                assistant_id=ASSISTANT_ID,
-            )
+    # Run the thread
+    run = client.beta.threads.runs.create_and_poll(
+        thread_id=thread.id,
+        assistant_id=ASSISTANT_ID,
+    )
 
-            while run.status != "completed":
-                run = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
-                
-                if run.status == "failed":
-                    yield f"data: {{\"event\": \"error\", \"content\": \"{run.last_error.message}\"}}\n\n"
-                    break
-                
-                if run.status == "completed":
-                    messages = client.beta.threads.messages.list(thread_id=thread_id)
-                    assistant_message = next((msg for msg in messages if msg.role == "assistant"), None)
-                    if assistant_message:
-                        content = assistant_message.content[0].text.value
-                        yield f"data: {{\"event\": \"message\", \"content\": \"{content}\", \"threadId\": \"{thread_id}\"}}\n\n"
-                    break
+    if run.status == "failed":
+        return jsonify({"error": f"Run failed: {run.last_error}"}), 500
 
-        except Exception as e:
-            print(f"Error: {str(e)}")
-            yield f"data: {{\"event\": \"error\", \"content\": \"{str(e)}\"}}\n\n"
+    # Retrieve the messages in the thread and get the most recent response
+    messages = client.beta.threads.messages.list(thread_id=thread.id)
+    new_response = messages.data[0].content[0].text.value
 
-    return Response(stream_with_context(generate()), content_type='text/event-stream')
+    # Use re.sub() to remove the matched source tags from the API response
+    pattern = r'【\d+†source】'
+    cleaned_response = re.sub(pattern, '', new_response)
+    print(cleaned_response)
+
+    return jsonify({"response": cleaned_response, "threadId": thread_id})
 
 if __name__ == '__main__':
     app.run(debug=True)
-
 
