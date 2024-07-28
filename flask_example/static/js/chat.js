@@ -17,7 +17,15 @@ document.addEventListener('DOMContentLoaded', function() {
     function appendMessage(role, text) {
         const messageDiv = document.createElement('div');
         messageDiv.className = role === 'user' ? 'userMessage' : 'assistantMessage';
-        messageDiv.textContent = text;
+
+        if (role === 'assistant'){
+            messageDiv.innerHTML = marked.parse(text)
+        } else{
+            messageDiv.textContent = text
+        }
+
+
+        // messageDiv.textContent = text;
         messagesContainer.appendChild(messageDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }

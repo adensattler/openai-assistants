@@ -65,6 +65,7 @@ from openai import OpenAI
 import os
 import re
 from dotenv import load_dotenv
+from markdown2 import Markdown
 
 app = Flask(__name__)
 
@@ -110,8 +111,11 @@ def send_message():
     new_response = messages.data[0].content[0].text.value
 
     # Use re.sub() to remove the matched source tags from the API response
-    pattern = r'【\d+†source】'
-    cleaned_response = re.sub(pattern, '', new_response)
+    # pattern = r'【\d+†source】'
+    # cleaned_response = re.sub(pattern, '', new_response)
+    # Remove the source tags and trailing newlines
+    cleaned_response = re.sub(r'【\d+[:†]\d+†source】', '', new_response)
+    cleaned_response = cleaned_response.strip()
     print(cleaned_response)
 
     return jsonify({"response": cleaned_response, "threadId": thread_id})
