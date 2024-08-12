@@ -66,6 +66,7 @@ import os
 import re
 from dotenv import load_dotenv
 from markdown2 import Markdown
+import json
 
 app = Flask(__name__)
 
@@ -75,9 +76,12 @@ load_dotenv()   # Load environment variables from .env file
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 ASSISTANT_ID = os.environ.get("OPENAI_ASSISTANT_ID")
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
 @app.route('/send_message', methods=['POST'])
 def send_message():
     data = request.json
@@ -119,6 +123,80 @@ def send_message():
     print(cleaned_response)
 
     return jsonify({"response": cleaned_response, "threadId": thread_id})
+
+
+
+@app.route("/stream", methods=["GET"])
+def stream():
+    user_message = request.args.get('message')
+    thread_id = request.args.get('threadId')
+
+    if not thread_id:
+        thread = client.beta.threads.create()
+        thread_id = thread.id
+    else:
+        thread = client.beta.threads.retrieve(thread_id)
+
+    # Add user message to thread
+    client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=user_message,
+    )
+
+
+    # https://platform.openai.com/docs/api-reference/runs/createRun
+    def event_generator():
+        finished = False
+        with client.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=ASSISTANT_ID,
+            stream=True
+        ) as stream:
+            for event in stream:
+                if event.event == "thread.message.delta":
+                    for content in event.data.delta.content:
+                        if content.type == 'text':
+                            # Personal Implementation
+                            # yield f"data: {json.dumps({'type': 'content', 'content': content.text.value})}\n\n"
+
+                            # LexiStream Integration
+                            data = content.text.value.replace('\n', ' <br> ')
+                            yield f"data: {data}\n\n"
+                
+                # handle all the status events (will get printed out on the server side for debugging)
+                # elif event.event == "thread.run.created":
+                #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_created'})}\n\n"
+                # elif event.event == "thread.run.queued":
+                #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_queued'})}\n\n"
+                # elif event.event == "thread.run.in_progress":
+                #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_in_progress'})}\n\n"
+                # elif event.event == "thread.run.completed":
+                #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_completed'})}\n\n"
+                # elif event.event == "thread.run.failed":
+                #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_failed'})}\n\n"
+                elif event.event == "done":
+                    # Generic Integration
+                    # yield f"data: {json.dumps({'type': 'status', 'content': 'done'})}\n\n"
+                    # break
+
+                    # LexiStream Implementation:
+                    finished = True
+                    break  
+        
+        yield f"data: finish_reason: stop\n\n"
+        if finished:
+            return
+
+
+    # generic implementation
+    # return Response(event_generator(), mimetype="text/event-stream")
+
+    # LexiStream Implementation:
+    return Response(stream_with_context(event_generator()), mimetype="text/event-stream")
+
+    
+
 
 if __name__ == '__main__':
     app.run(debug=True)
