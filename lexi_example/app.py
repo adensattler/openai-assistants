@@ -6,10 +6,16 @@ from flask import (
     stream_with_context,
     jsonify,
 )
-import openai
+from openai import OpenAI
 from flask_cors import CORS
+import os
+from dotenv import load_dotenv
 
-client = openai.OpenAI()
+# client = openai.OpenAI()
+load_dotenv()   # Load environment variables from .env file
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+ASSISTANT_ID = os.environ.get("OPENAI_ASSISTANT_ID")
+
 
 app = Flask(__name__)
 CORS(app)
@@ -31,108 +37,72 @@ def chat():
     return jsonify(success=True)
 
 
+# Routes For Assistants API Functionality
+# -------------------------------------------------------------------------------------
+@app.route("/new-thread-id", methods=["GET"])
+def new_thread_id():
+    thread = client.beta.threads.create()
+    return jsonify({'threadId': thread.id})
 
+
+@app.route('/add-message', methods=['POST'])
+def add_message():
+    # adds a message to a provided thread_id
+    # will be used just before /stream is called
+    data = request.get_json()
+    thread_id = data.get('threadId')
+    message = data.get('message')
+
+    # Add user message to thread
+    client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=message,
+    )
+    
+    # Logic to add the message to the specified thread
+    return jsonify({'success': True})
+
+
+# Stream Assitants API Response
 @app.route("/stream", methods=["GET"])
 def stream():
-    def generate():
-        assistant_response_content = ""
+
+    thread_id = request.args.get('threadId')
+
+    # This is added redundancy
+    if not thread_id:
+        thread = client.beta.threads.create()
+        thread_id = thread.id
+    else:
+        thread = client.beta.threads.retrieve(thread_id)
+
+    # Reference the Assistants API Docs here for more info on how streaming works:
+    # https://platform.openai.com/docs/api-reference/runs/createRun
+    def event_generator():
         finished = False
-        with client.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=chat_history,
-            stream=True,
+        with client.beta.threads.runs.create(
+            thread_id=thread_id,
+            assistant_id=ASSISTANT_ID,
+            stream=True
         ) as stream:
-            for chunk in stream:
-                if chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    assistant_response_content += content
-                    data = chunk.choices[0].delta.content.replace('\n', ' <br> ')
-                    yield f"data: {data}\n\n"
-
-
-                if chunk.choices[0].finish_reason == "stop":
+            for event in stream:
+                if event.event == "thread.message.delta":
+                    for content in event.data.delta.content:
+                        if content.type == 'text':
+                            data = content.text.value.replace('\n', ' <br> ')
+                            yield f"data: {data}\n\n"
+                
+                elif event.event == "done":
                     finished = True
-                    break
-
+                    break  
         yield f"data: finish_reason: stop\n\n"
-        chat_history.append({"role": "assistant", "content": assistant_response_content})
+
         if finished:
             return
 
-    return Response(stream_with_context(generate()), mimetype="text/event-stream")
-
-
-# BACKUP
-# @app.route("/stream", methods=["GET"])
-# def stream():
-#     user_message = request.args.get('message')
-#     thread_id = request.args.get('threadId')
-
-#     if not thread_id:
-#         thread = client.beta.threads.create()
-#         thread_id = thread.id
-#     else:
-#         thread = client.beta.threads.retrieve(thread_id)
-
-#     # Add user message to thread
-#     client.beta.threads.messages.create(
-#         thread_id=thread_id,
-#         role="user",
-#         content=user_message,
-#     )
-
-
-#     # https://platform.openai.com/docs/api-reference/runs/createRun
-#     def event_generator():
-#         finished = False
-#         with client.beta.threads.runs.create(
-#             thread_id=thread_id,
-#             assistant_id=ASSISTANT_ID,
-#             stream=True
-#         ) as stream:
-#             for event in stream:
-#                 if event.event == "thread.message.delta":
-#                     for content in event.data.delta.content:
-#                         if content.type == 'text':
-#                             # Personal Implementation
-#                             # yield f"data: {json.dumps({'type': 'content', 'content': content.text.value})}\n\n"
-
-#                             # LexiStream Integration
-#                             data = content.text.value.replace('\n', ' <br> ')
-#                             yield f"data: {data}\n\n"
-                
-#                 # handle all the status events (will get printed out on the server side for debugging)
-#                 # elif event.event == "thread.run.created":
-#                 #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_created'})}\n\n"
-#                 # elif event.event == "thread.run.queued":
-#                 #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_queued'})}\n\n"
-#                 # elif event.event == "thread.run.in_progress":
-#                 #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_in_progress'})}\n\n"
-#                 # elif event.event == "thread.run.completed":
-#                 #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_completed'})}\n\n"
-#                 # elif event.event == "thread.run.failed":
-#                 #     yield f"data: {json.dumps({'type': 'status', 'content': 'run_failed'})}\n\n"
-#                 elif event.event == "done":
-#                     # Generic Integration
-#                     # yield f"data: {json.dumps({'type': 'status', 'content': 'done'})}\n\n"
-#                     # break
-
-#                     # LexiStream Implementation:
-#                     finished = True
-#                     break  
-        
-#         yield f"data: finish_reason: stop\n\n"
-#         if finished:
-#             return
-
-
-    # generic implementation
-    # return Response(event_generator(), mimetype="text/event-stream")
-
-    # LexiStream Implementation:
     return Response(stream_with_context(event_generator()), mimetype="text/event-stream")
 
-    
 
 
 @app.route("/reset", methods=["POST"])
