@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+        rel="stylesheet">
+
+    <title>OpenAI Chat</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+    <script type="module" src="{{ url_for('static', filename='js/LexiMark.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/initialMessage.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+</head>
+
+<body>
+
+    <main class="main">
+        <div class="container">
+            <div class="chatContainer">
+                <div id="messages" class="flex flex-col-reverse">
+                    <lexi-mark class="assistant-message" id="initial-message"></lexi-mark>
+                </div>
+
+                <form id="chatForm" class="inputForm clearfix">
+                    <!-- <input type="text" id="userInput" class="input" placeholder="Enter your question">
+                    <button type="submit" class="button">Send</button> -->
+                    <input type="text" id="inputBoxID" class="input" placeholder="Enter your question">
+                    <button type="submit" class="button" id="userInput">Send</button>
+                    <button type="submit" class="button" id="stop" disabled>Stop</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+
+
+
+    <!-- <h1>OpenAI Chat (write a python tutorial for hello world) </h1>
+
+    <div class="chat-controls">
+        <input type="text" id="inputBoxID">
+        <button id="StartChat">Start Chat</button>
+        <button id="stop">Stop</button>
+    </div> -->
+
+
+
+    <script src="{{ url_for('static', filename='js/LexiStream.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const streamConfig = {
+                sendRequest: "/chat",
+                listen: "/stream",
+                sendContent: "#inputBoxID",
+                start: "#userInput",
+                stop: "#stop",
+                box: "#messages",
+                customLoadingMessage: "Processing",
+                isAssistant: "True"
+            };
+
+            new LexiStream(streamConfig);
+        });
+
+    </script>
+
+</body>
+
+</html>

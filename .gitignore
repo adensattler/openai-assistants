@@ -1,3 +1,4 @@
 .env
 stream_api_response.json
 junk.py
+__pycache__
