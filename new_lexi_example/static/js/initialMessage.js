@@ -1,16 +1,4 @@
 document.addEventListener('DOMContentLoaded', function () {
-    // const initialMessage = `# Welcome! 👋\n\nHello, I'm your assistant. How can I help you today?\n\n\`\`\`js\n// Example code\nconsole.log('Hello, world!');\n\`\`\``;
-
-    // // Get the LexiMark element
-    // const assistantMessageElement = document.getElementById('inital-message');
-
-    // // Set the content
-    // assistantMessageElement.innerHTML = initialMessage;
-
-
-
-
-    // const initialMessageContainer = document.getElementById('initial-message');
 
     // Add the initial message
     const initialMessage = `

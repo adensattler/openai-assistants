@@ -37,7 +37,10 @@
         }
     
         attachEventListeners() {
-            this.startButton.addEventListener('click', () => this.processInput());
+            this.startButton.addEventListener('click', (e) => {
+                e.preventDefault();  // Prevent default form submission
+                this.processInput();
+            });
             this.inputBox.addEventListener('keypress', e => {
                 if (e.key === 'Enter') {
                     if (this.eventSource) {
